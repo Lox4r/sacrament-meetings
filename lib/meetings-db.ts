@@ -1,107 +1,133 @@
 
+import { neon } from "@neondatabase/serverless";
 import type { SacramentMeeting } from "./types";
 
-const meetings: SacramentMeeting[] = [
-  {
-    id: 1,
-    date: "2026-10-11",
-    meetingType: "regular",
-    presiding: "Bishop Anderson",
-    conducting: "Brother Martinez",
-    announcements: ["Ward service activity on Saturday."],
-    openingHymn: { number: 3, title: "Now Let Us Rejoice" },
-    openingPrayer: "Sister Lopez",
-    wardBusiness: [{ description: "Welcome new ward members." }],
-    stakeBusiness: false,
-    sacramentHymn: { number: 169, title: "As Now We Take the Sacrament" },
-    speakers: [
-      { name: "Brother Garcia", topic: "Faith", type: "speaker" },
-      { name: "Sister Johnson", topic: "Service", type: "speaker" },
-    ],
-    closingHymn: { number: 152, title: "God Be with You Till We Meet Again" },
-    closingPrayer: "Brother Wilson",
-  },
-  {
-    id: 2,
-    date: "2026-10-18",
-    meetingType: "regular",
-    presiding: "Bishop Anderson",
-    conducting: "Brother Martinez",
-    announcements: ["Youth activity on Wednesday."],
-    openingHymn: { number: 85, title: "How Firm a Foundation" },
-    openingPrayer: "Brother Smith",
-    wardBusiness: [],
-    stakeBusiness: false,
-    sacramentHymn: { number: 169, title: "As Now We Take the Sacrament" },
-    speakers: [
-      { name: "Sister Davis", topic: "Hope", type: "speaker" },
-    ],
-    closingHymn: { number: 152, title: "God Be with You Till We Meet Again" },
-    closingPrayer: "Sister Brown",
-  },
-  {
-    id: 3,
-    date: "2026-10-25",
-    meetingType: "regular",
-    presiding: "Bishop Anderson",
-    conducting: "Brother Martinez",
-    announcements: ["Ward temple trip next month."],
-    openingHymn: { number: 3, title: "Now Let Us Rejoice" },
-    openingPrayer: "Brother Taylor",
-    wardBusiness: [],
-    stakeBusiness: false,
-    sacramentHymn: { number: 169, title: "As Now We Take the Sacrament" },
-    speakers: [
-      { name: "Brother Thomas", topic: "Charity", type: "speaker" },
-    ],
-    closingHymn: { number: 85, title: "How Firm a Foundation" },
-    closingPrayer: "Sister Miller",
-  },
-  {
-    id: 4,
-    date: "2026-11-01",
-    meetingType: "testimony",
-    presiding: "Bishop Anderson",
-    conducting: "Brother Martinez",
-    announcements: ["Fast and testimony meeting."],
-    openingHymn: { number: 3, title: "Now Let Us Rejoice" },
-    openingPrayer: "Sister Garcia",
-    wardBusiness: [],
-    stakeBusiness: false,
-    sacramentHymn: { number: 169, title: "As Now We Take the Sacrament" },
-    speakers: [],
-    closingHymn: { number: 152, title: "God Be with You Till We Meet Again" },
-    closingPrayer: "Brother Lopez",
-  },
-  {
-    id: 5,
-    date: "2026-11-08",
-    meetingType: "regular",
-    presiding: "Bishop Anderson",
-    conducting: "Brother Martinez",
-    announcements: ["Ward council meeting after church."],
-    openingHymn: { number: 85, title: "How Firm a Foundation" },
-    openingPrayer: "Sister Johnson",
-    wardBusiness: [{ description: "Ward announcements." }],
-    stakeBusiness: false,
-    sacramentHymn: { number: 169, title: "As Now We Take the Sacrament" },
-    speakers: [
-      { name: "Brother Wilson", topic: "Prayer", type: "speaker" },
-      { name: "Sister Brown", topic: "Gratitude", type: "speaker" },
-    ],
-    closingHymn: { number: 3, title: "Now Let Us Rejoice" },
-    closingPrayer: "Brother Smith",
-  },
-];
+const getSql = () => {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is not configured");
+  }
 
-export function getMeetings(): SacramentMeeting[] {
-  return meetings;
+  return neon(process.env.DATABASE_URL);
+};
+
+type MeetingRow = {
+  id: number;
+  date: string;
+  meeting_type: SacramentMeeting["meetingType"];
+  presiding: string;
+  conducting: string;
+  announcements: string[];
+  opening_hymn: SacramentMeeting["openingHymn"];
+  opening_prayer: string;
+  ward_business: SacramentMeeting["wardBusiness"];
+  stake_business: boolean;
+  sacrament_hymn: SacramentMeeting["sacramentHymn"];
+  speakers: SacramentMeeting["speakers"];
+  closing_hymn: SacramentMeeting["closingHymn"];
+  closing_prayer: string;
+};
+
+function mapMeeting(row: MeetingRow): SacramentMeeting {
+  return {
+    id: row.id,
+    date: row.date,
+    meetingType: row.meeting_type,
+    presiding: row.presiding,
+    conducting: row.conducting,
+    announcements: row.announcements,
+    openingHymn: row.opening_hymn,
+    openingPrayer: row.opening_prayer,
+    wardBusiness: row.ward_business,
+    stakeBusiness: row.stake_business,
+    sacramentHymn: row.sacrament_hymn,
+    speakers: row.speakers,
+    closingHymn: row.closing_hymn,
+    closingPrayer: row.closing_prayer,
+  };
 }
 
-export function getMeetingById(id: number): SacramentMeeting | undefined {
-  return meetings.find((meeting) => meeting.id === id);
+export async function getMeetings(): Promise<SacramentMeeting[]> {
+  const sql = getSql();
+
+  const rows = await sql`
+    SELECT
+      id,
+      TO_CHAR(date, 'YYYY-MM-DD') AS date,
+      meeting_type,
+      presiding,
+      conducting,
+      announcements,
+      opening_hymn,
+      opening_prayer,
+      ward_business,
+      stake_business,
+      sacrament_hymn,
+      speakers,
+      closing_hymn,
+      closing_prayer
+    FROM meetings
+    ORDER BY date DESC
+  `;
+
+  return (rows as MeetingRow[]).map(mapMeeting);
 }
 
-export function getMeetingByDate(date: string): SacramentMeeting | undefined {
-  return meetings.find((meeting) => meeting.date === date);
+export async function getMeetingById(
+  id: number
+): Promise<SacramentMeeting | undefined> {
+  const sql = getSql();
+
+  const rows = await sql`
+    SELECT
+      id,
+      TO_CHAR(date, 'YYYY-MM-DD') AS date,
+      meeting_type,
+      presiding,
+      conducting,
+      announcements,
+      opening_hymn,
+      opening_prayer,
+      ward_business,
+      stake_business,
+      sacrament_hymn,
+      speakers,
+      closing_hymn,
+      closing_prayer
+    FROM meetings
+    WHERE id = ${id}
+    LIMIT 1
+  `;
+
+  const meeting = rows[0] as MeetingRow | undefined;
+  return meeting ? mapMeeting(meeting) : undefined;
+}
+
+export async function getMeetingByDate(
+  date: string
+): Promise<SacramentMeeting | undefined> {
+  const sql = getSql();
+
+  const rows = await sql`
+    SELECT
+      id,
+      TO_CHAR(date, 'YYYY-MM-DD') AS date,
+      meeting_type,
+      presiding,
+      conducting,
+      announcements,
+      opening_hymn,
+      opening_prayer,
+      ward_business,
+      stake_business,
+      sacrament_hymn,
+      speakers,
+      closing_hymn,
+      closing_prayer
+    FROM meetings
+    WHERE date = ${date}::date
+    LIMIT 1
+  `;
+
+  const meeting = rows[0] as MeetingRow | undefined;
+  return meeting ? mapMeeting(meeting) : undefined;
 }

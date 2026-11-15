@@ -1,15 +1,16 @@
+
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { getMeetings } from "@/lib/meetings-db";
 
+export const instant = false;
+
 export default async function CurrentMeetingPage() {
-  // Wait for a request before calculating the date.
   await connection();
 
   const today = new Date();
   const sunday = new Date(today);
 
-  // Find the most recent Sunday.
   sunday.setDate(today.getDate() - today.getDay());
 
   const sundayDate = [
@@ -18,8 +19,9 @@ export default async function CurrentMeetingPage() {
     String(sunday.getDate()).padStart(2, "0"),
   ].join("-");
 
-  // Find the latest recorded meeting on or before Sunday.
-  const meeting = [...getMeetings()]
+  const meetings = await getMeetings();
+
+  const meeting = meetings
     .filter((item) => item.date <= sundayDate)
     .sort((a, b) => b.date.localeCompare(a.date))[0];
 

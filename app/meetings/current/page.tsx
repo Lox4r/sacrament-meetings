@@ -1,3 +1,4 @@
+
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { getMeetings } from "@/lib/meetings-db";
@@ -18,8 +19,11 @@ export default async function CurrentMeetingPage() {
     String(sunday.getDate()).padStart(2, "0"),
   ].join("-");
 
+  // Retrieve meetings from Neon PostgreSQL.
+  const meetings = await getMeetings();
+
   // Find the latest recorded meeting on or before Sunday.
-  const meeting = [...getMeetings()]
+  const meeting = meetings
     .filter((item) => item.date <= sundayDate)
     .sort((a, b) => b.date.localeCompare(a.date))[0];
 

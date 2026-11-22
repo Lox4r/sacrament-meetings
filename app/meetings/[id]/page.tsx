@@ -1,10 +1,12 @@
+﻿import DeleteMeetingButton from "@/components/DeleteMeetingButton";
 
 import Link from "next/link";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
+
 import MeetingDetail from "@/components/MeetingDetail";
 import PrintButton from "@/components/PrintButton";
-import type { SacramentMeeting } from "@/lib/types";
+import { getMeetingById } from "@/lib/meetings-db";
 
 export const instant = false;
 
@@ -12,36 +14,19 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-async function fetchMeeting(id: string): Promise<SacramentMeeting | null> {
-  const headerStore = await headers();
-  const host = headerStore.get("host");
+export default async function MeetingPage({
+  params,
+}: PageProps) {
+  await connection();
 
-  if (!host) {
-    throw new Error("Unable to determine the application host");
-  }
-
-  const protocol =
-    process.env.NODE_ENV === "development" ? "http" : "https";
-
-  const response = await fetch(
-    `${protocol}://${host}/api/meetings/${encodeURIComponent(id)}`,
-    { cache: "no-store" }
-  );
-
-  if (response.status === 404 || response.status === 400) {
-    return null;
-  }
-
-  if (!response.ok) {
-    throw new Error("Failed to load meeting");
-  }
-
-  return (await response.json()) as SacramentMeeting;
-}
-
-export default async function MeetingPage({ params }: PageProps) {
   const { id } = await params;
-  const meeting = await fetchMeeting(id);
+  const meetingId = Number(id);
+
+  if (!Number.isSafeInteger(meetingId) || meetingId <= 0) {
+    notFound();
+  }
+
+  const meeting = await getMeetingById(meetingId);
 
   if (!meeting) {
     notFound();
@@ -54,11 +39,22 @@ export default async function MeetingPage({ params }: PageProps) {
           href="/meetings"
           className="font-medium text-blue-500 hover:underline"
         >
-          ← Back to Meetings
+          â† Back to Meetings
         </Link>
       </div>
 
       <MeetingDetail meeting={meeting} />
+
+      <div className="mt-6 flex flex-wrap gap-3 print:hidden">
+        <Link
+          href={`/meetings/${meeting.id}/edit`}
+          className="rounded bg-blue-700 px-4 py-2 text-white"
+        >
+          Edit Meeting
+        </Link>
+
+        <DeleteMeetingButton meetingId={meeting.id} />
+      </div>
 
       <div className="mt-6 print:hidden">
         <PrintButton />
